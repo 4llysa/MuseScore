@@ -38,6 +38,10 @@
 #include "stringdata.h"
 #include "system.h"
 #include "undo.h"
+#include <QEvent>
+#include <QCloseEvent>
+#include <QTimer>
+#include <QScopedValueRollback>
 
 #include "rw/read410/tread.h"
 #include "rw/read410/harmonytodiagramreader.h"
@@ -398,6 +402,8 @@ void FretDiagram::setMarker(int string, FretMarkerType mtype)
 
 void FretDiagram::setBarre(int startString, int endString, int fret)
 {
+    qDebug() << "SET BARRE";
+    qWarning() << "SET BARRE";
     if (startString == -1) {
         removeBarre(fret);
     } else if (startString >= 0 && endString >= -1 && startString < m_strings && endString < m_strings) {
@@ -416,8 +422,11 @@ void FretDiagram::setBarre(int startString, int endString, int fret)
 void FretDiagram::setBarre(int string, int fret, bool add /*= false*/)
 {
     UNUSED(add);
-
+    qDebug() << "SET BARRE2";
+    qWarning() << "SET BARRE2";
     FretItem::Barre b = barre(fret);
+    qWarning() << b.startString << b.endString;
+    
     if (!b.exists()) {
         if (string < m_strings - 1) {
             m_barres[fret] = FretItem::Barre(string, -1);
