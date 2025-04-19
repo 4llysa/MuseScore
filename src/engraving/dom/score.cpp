@@ -4769,6 +4769,10 @@ ChordRest* Score::findChordRestEndingBeforeTickInTrack(const Fraction& tick, tra
 //   cmdNextPrevSystem
 //---------------------------------------------------------
 
+System* getSystemWithFallback(Measure* m) {
+    m->system() ? m->system() : m->coveringMMRestOrThis()->system();
+}
+
 ChordRest* Score::cmdNextPrevSystem(ChordRest* cr, bool next)
 {
     IF_ASSERT_FAILED(cr) {
@@ -4777,7 +4781,7 @@ ChordRest* Score::cmdNextPrevSystem(ChordRest* cr, bool next)
 
     auto newCR = cr;
     auto currentMeasure = cr->measure();
-    auto currentSystem = currentMeasure->system() ? currentMeasure->system() : currentMeasure->coveringMMRestOrThis()->system();
+    auto currentSystem = getSystemWithFallback(currentMeasure);
     if (!currentSystem) {
         return cr;
     }
@@ -4792,9 +4796,7 @@ ChordRest* Score::cmdNextPrevSystem(ChordRest* cr, bool next)
     if (next) {
         if ((destinationMeasure = currentSystem->lastMeasure()->nextMeasure())) {
             // There is a next system present: get it and accommodate for MMRest
-            currentSystem = destinationMeasure->system()
-                            ? destinationMeasure->system()
-                            : destinationMeasure->coveringMMRestOrThis()->system();
+            currentSystem = getSystemWithFallback(destinationMeasure);
             if (!currentSystem) {
                 return cr;
             }
@@ -4824,14 +4826,13 @@ ChordRest* Score::cmdNextPrevSystem(ChordRest* cr, bool next)
         auto currentSegment = cr->segment();
         // Only go to previous system's beginning if user is already at the absolute beginning of current system
         // and not in first measure of entire score
-        if ((destinationMeasure != firstMeasure() && destinationMeasure != firstMeasureMM())
-            && (currentSegment == firstSegment || (currentMeasure->mmRest() && currentMeasure->mmRest()->isFirstInSystem()))) {
+        bool notInFirstMeasureOfScore = (destinationMeasure != firstMeasure()) && (destinationMeasure != firstMeasureMM());
+        bool atAbsoluteBeggingOfSystem = currentSegment == firstSegment || (currentMeasure->mmRest() && currentMeasure->mmRest()->isFirstInSystem());
+        if (notInFirstMeasureOfScore && atAbsoluteBeggingOfSystem) {
             if (!(destinationMeasure = destinationMeasure->prevMeasureMM())) {
                 return cr;
             }
-            if (!(currentSystem = destinationMeasure->system()
-                                  ? destinationMeasure->system()
-                                  : destinationMeasure->coveringMMRestOrThis()->system())) {
+            if (!(currentSystem = getSystemWithFallback(destinationMeasure))) {
                 return cr;
             }
             destinationMeasure = currentSystem->firstMeasure();
@@ -4869,41 +4870,47 @@ Box* Score::cmdNextPrevFrame(MeasureBase* currentMeasureBase, bool next) const
 
 EngravingItem* Score::cmdNextPrevSection(EngravingItem* el, bool dir) const
 {
-    auto currentMeasureBase = el->findMeasureBase();
-    auto destination = currentMeasureBase;
-    if (currentMeasureBase) {
-        // -----------------------
-        // Next Section of Score
-        // -----------------------
-        if (dir) {
-            if ((destination = getNextPrevSectionBreak(currentMeasureBase, true))) {
-                el = getScoreElementOfMeasureBase(destination->next());
-            }
+    MeasureBase* currentMeasureBase = el->findMeasureBase();
+    MeasureBase* destination = currentMeasureBase;
+    
+    if (!currentMeasureBase) {
+        return el;
+    }
+
+    // -----------------------
+    // Next Section of Score
+    // -----------------------
+    if (dir) {
+        if ((destination = getNextPrevSectionBreak(currentMeasureBase, true))) {
+            el = getScoreElementOfMeasureBase(destination->next());
         }
-        // -------------------------
-        // Previous Section of Score
-        // -------------------------
-        else {
-            auto currentSegment = el->isChordRest() ? toChordRest(el)->segment() : nullptr;
-            if ((destination = getNextPrevSectionBreak(currentMeasureBase, false))) {
-                if (currentSegment) {
-                    if ((el = getScoreElementOfMeasureBase((score()->first() == destination) ? destination : destination->next()))) {
-                        if (el->isChordRest() && (toChordRest(el)->segment() == currentSegment)) {
-                            if ((destination = getNextPrevSectionBreak(destination, false))) {
-                                el = !(destination->sectionBreak()) ? destination : getScoreElementOfMeasureBase(destination->next());
-                            }
-                        }
-                    }
-                } else if ((score()->first() != currentMeasureBase) && (el = getScoreElementOfMeasureBase(destination->next()))) {
-                    if (el->findMeasureBase() == currentMeasureBase) {
-                        if ((destination = getNextPrevSectionBreak(destination, false))) {
-                            el = !(destination->sectionBreak()) ? el : getScoreElementOfMeasureBase(destination->next());
-                        }
-                    }
+        return el; 
+    }
+    // -------------------------
+    // Previous Section of Score
+    // -------------------------
+    Segment* currentSegment = el->isChordRest() ? toChordRest(el)->segment() : nullptr;
+    destination = getNextPrevSectionBreak(currentMeasureBase, false);
+    if (!destination) {
+        return el;
+    }
+
+    if (currentSegment) {
+        if ((el = getScoreElementOfMeasureBase((score()->first() == destination) ? destination : destination->next()))) {
+            if (el->isChordRest() && (toChordRest(el)->segment() == currentSegment)) {
+                if ((destination = getNextPrevSectionBreak(destination, false))) {
+                    el = !(destination->sectionBreak()) ? destination : getScoreElementOfMeasureBase(destination->next());
                 }
             }
         }
+    } else if ((score()->first() != currentMeasureBase) && (el = getScoreElementOfMeasureBase(destination->next()))) {
+        if (el->findMeasureBase() == currentMeasureBase) {
+            if ((destination = getNextPrevSectionBreak(destination, false))) {
+                el = !(destination->sectionBreak()) ? el : getScoreElementOfMeasureBase(destination->next());
+            }
+        }
     }
+    
     return el;
 }
 
