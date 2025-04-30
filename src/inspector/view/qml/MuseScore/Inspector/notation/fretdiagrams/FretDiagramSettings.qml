@@ -149,12 +149,9 @@ Item {
                                 return isNaN(fingerInt) || fingerInt < 1 || fingerInt > 5
                             }
 
-                            currentText: isIndeterminate ? '' : repeaterItem.finger
+                            currentText: isIndeterminate ? ((repeaterItem.finger === "T" || repeaterItem.finger === "t") ? "T" : "T") : repeaterItem.finger
 
-                            validator: IntInputValidator {
-                                top: 5
-                                bottom: 0
-                            }
+                            validator: RegularExpressionValidator {regularExpression: /^[1-5T]$/}
 
                             navigation.name: `Finger ${repeaterItem.string + 1} text input`
                             navigation.panel: root.navigationPanel
@@ -162,9 +159,9 @@ Item {
                             navigation.accessible.name: qsTrc("inspector", "Finger for string %1").arg(repeaterItem.string + 1)
 
                             onTextEditingFinished: function (newTextValue) {
-                                var newFinger = parseInt(newTextValue)
+                                
                                 if (root.model) {
-                                    root.model.setFingering(repeaterItem.string, newFinger)
+                                    root.model.setFingering(repeaterItem.string, newTextValue)
                                 }
                             }
                         }

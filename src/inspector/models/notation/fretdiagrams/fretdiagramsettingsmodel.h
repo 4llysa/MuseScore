@@ -71,7 +71,8 @@ public:
     PropertyItem* showFingerings() const;
     QStringList fingerings() const;
 
-    Q_INVOKABLE void setFingering(int string, int finger);
+    // Q_INVOKABLE void setFingering(int string, int finger);
+    Q_INVOKABLE void setFingering(int string, QStringg& finger);
     Q_INVOKABLE void resetFingerings();
 
     QVariant fretDiagram() const;
